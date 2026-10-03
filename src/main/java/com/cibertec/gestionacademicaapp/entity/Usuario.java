@@ -1,39 +1,33 @@
 package com.cibertec.gestionacademicaapp.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
-@Getter
-@Setter
 @Entity
 @Table(name = "USUARIO")
+@Data
 public class Usuario {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "IdUsuario")
-    private Integer idUsuario;
+    private Integer idUsuario; // PK
 
-    // Relación opcional con Alumno (Puede ser nulo por tu diseño de arcos exclusivos)
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "IdAlumno")
-    private Alumno alumno;
+    @Column(name = "IdAlumno")
+    private Integer idAlumno; // FK
 
+    @Column(name = "IdDocente")
+    private Integer idDocente; // FK[cite: 3]
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "IdDocente")
-    private Docente docente;
+    @Column(name = "Usuario")
+    private String usuario; // varchar(50)[cite: 3]
 
-    @Column(name = "Usuario", length = 50, nullable = false, unique = true)
-    private String username;
+    @Column(name = "PasswordHash")
+    private String passwordHash; // varchar(255)[cite: 3]
 
-    @Column(name = "PasswordHash", length = 255, nullable = false)
-    private String password;
+    @Column(name = "Rol")
+    private String rol; // varchar(20)[cite: 3]
 
-    @Column(name = "Rol", length = 20, nullable = false)
-    private String rol;
-
-    @Column(name = "Estado", nullable = false)
-    private Boolean estado = true;
+    @Column(name = "Estado")
+    private Boolean estado; // bit[cite: 3]
 }
