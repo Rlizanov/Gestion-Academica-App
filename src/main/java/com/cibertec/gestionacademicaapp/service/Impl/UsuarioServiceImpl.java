@@ -27,7 +27,7 @@ public class UsuarioServiceImpl implements UsuarioService {
                 .orElseThrow(() -> new RuntimeException("Credenciales incorrectas o cuenta inactiva."));
 
         // 2. Comparamos la contraseña en texto plano enviada en el JSON con el PasswordHash de la base de datos
-        if (!passwordEncoder.matches(requestDTO.getPasswordHash(), usuarioValido.getPasswordHash())) {
+        if (!passwordEncoder.matches(requestDTO.getPassword(), usuarioValido.getPasswordHash())) {
             throw new RuntimeException("Credenciales incorrectas o cuenta inactiva.");
         }
 
@@ -40,7 +40,7 @@ public class UsuarioServiceImpl implements UsuarioService {
         Usuario nuevoUsuario = usuarioMapper.toEntity(requestDTO);
 
         // Encriptamos la contraseña plana y la guardamos en la columna PasswordHash
-        String hash = passwordEncoder.encode(requestDTO.getPasswordHash());
+        String hash = passwordEncoder.encode(requestDTO.getPassword());
         nuevoUsuario.setPasswordHash(hash);
 
         // Asignamos el estado activo por defecto

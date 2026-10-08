@@ -10,7 +10,7 @@ public class UsuarioRequestDTO {
     private String usuario;
 
     @NotBlank(message = "La contraseña es obligatoria")
-    private String passwordHash;
+    private String password;
 
     private String rol; // Ej: "ALUMNO" o "DOCENTE"
     private Integer idAlumno;

@@ -26,13 +26,6 @@ public class UsuarioController {
         return ResponseEntity.ok(response); // Devuelve un 200 OK si todo está correcto
     }
 
-    // Captura la excepción del Service y devuelve un 401 Unauthorized en formato JSON
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<Map<String, String>> handleLoginException(RuntimeException ex) {
-        Map<String, String> errorResponse = new HashMap<>();
-        errorResponse.put("error", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
-    }
 
     // POST: http://localhost:8080/api/v1/usuarios/registro
     @PostMapping("/registro")
