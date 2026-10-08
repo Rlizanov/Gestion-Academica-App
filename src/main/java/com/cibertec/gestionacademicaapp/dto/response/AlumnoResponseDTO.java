@@ -17,4 +17,5 @@ public class AlumnoResponseDTO {
 
     // El verdadero poder del DTO: aplanar la información
     private String nombreCarrera;
+    private Integer idCarrera;
 }

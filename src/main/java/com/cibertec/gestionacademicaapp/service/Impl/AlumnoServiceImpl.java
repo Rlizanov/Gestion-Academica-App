@@ -3,11 +3,14 @@ package com.cibertec.gestionacademicaapp.service.Impl;
 import com.cibertec.gestionacademicaapp.dto.request.AlumnoRequestDTO;
 import com.cibertec.gestionacademicaapp.dto.response.AlumnoResponseDTO;
 import com.cibertec.gestionacademicaapp.entity.Alumno;
+import com.cibertec.gestionacademicaapp.entity.Carrera;
 import com.cibertec.gestionacademicaapp.mapper.AlumnoMapper;
 import com.cibertec.gestionacademicaapp.repository.AlumnoRepository;
+import com.cibertec.gestionacademicaapp.repository.CarreraRepository;
 import com.cibertec.gestionacademicaapp.service.AlumnoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -18,6 +21,7 @@ public class AlumnoServiceImpl implements AlumnoService {
 
     private final AlumnoRepository alumnoRepository;
     private final AlumnoMapper alumnoMapper;
+    private final CarreraRepository carreraRepository;
 
     @Override
     public List<AlumnoResponseDTO> listarAlumnosActivos() {
@@ -38,6 +42,7 @@ public class AlumnoServiceImpl implements AlumnoService {
     }
 
     @Override
+    @Transactional
     public AlumnoResponseDTO registrarAlumno(AlumnoRequestDTO requestDTO) {
         // 1. Validar reglas de negocio
         if (alumnoRepository.findByDni(requestDTO.getDni()).isPresent()) {
@@ -47,22 +52,32 @@ public class AlumnoServiceImpl implements AlumnoService {
             throw new RuntimeException("El correo ya está registrado.");
         }
 
-        // 2. Convertir el DTO a Entidad
-        Alumno nuevoAlumno = alumnoMapper.toEntity(requestDTO);
+        // 2. Validar que la carrera exista en BD
+        Carrera carrera = carreraRepository.findById(requestDTO.getIdCarrera())
+                .orElseThrow(() -> new RuntimeException("Carrera no encontrada con ID: " + requestDTO.getIdCarrera()));
 
-        // 3. Guardar en SQL Server
+        // 3. Convertir el DTO a Entidad y asegurar la carrera real
+        Alumno nuevoAlumno = alumnoMapper.toEntity(requestDTO);
+        nuevoAlumno.setCarrera(carrera); // Reforzamos asignando la entidad administrada por JPA
+
+        // 4. Guardar en SQL Server
         Alumno alumnoGuardado = alumnoRepository.save(nuevoAlumno);
 
-        // 4. Devolver la respuesta mapeada
+        // 5. Devolver la respuesta mapeada
         return alumnoMapper.toDto(alumnoGuardado);
     }
 
     @Override
+    @Transactional
     public AlumnoResponseDTO actualizarAlumno(Integer id, AlumnoRequestDTO requestDTO) {
         Alumno alumnoExistente = alumnoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Alumno no encontrado con ID: " + id));
 
-        // Actualizamos los datos (no tocamos el ID ni el estado)
+        // Validar que la nueva carrera exista
+        Carrera carrera = carreraRepository.findById(requestDTO.getIdCarrera())
+                .orElseThrow(() -> new RuntimeException("Carrera no encontrada con ID: " + requestDTO.getIdCarrera()));
+
+        // Actualizamos los datos
         alumnoExistente.setNombres(requestDTO.getNombres());
         alumnoExistente.setApellidos(requestDTO.getApellidos());
         alumnoExistente.setDni(requestDTO.getDni());
@@ -70,8 +85,8 @@ public class AlumnoServiceImpl implements AlumnoService {
         alumnoExistente.setCorreo(requestDTO.getCorreo());
         alumnoExistente.setTelefono(requestDTO.getTelefono());
 
-        // Aquí deberías actualizar la carrera también, pero requeriría buscar la entidad Carrera primero.
-        // Por simplicidad en este paso, actualizamos los datos básicos.
+        // ¡Ahora sí actualizamos la carrera!
+        alumnoExistente.setCarrera(carrera);
 
         Alumno alumnoActualizado = alumnoRepository.save(alumnoExistente);
         return alumnoMapper.toDto(alumnoActualizado);

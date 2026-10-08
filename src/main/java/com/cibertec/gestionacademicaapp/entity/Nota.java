@@ -22,8 +22,8 @@ public class Nota {
     @JoinColumn(name = "IdDetalleMatricula", nullable = false)
     private DetalleMatricula detalleMatricula;
 
-    @Column(name = "Nota", precision = 4, scale = 2, nullable = false)
-    private BigDecimal nota;
+    @Column(name = "Nota", nullable = false)
+    private Double valorNota;
 
     @Column(name = "TipoEvaluacion", length = 30, nullable = false)
     private String tipoEvaluacion;
