@@ -1,16 +1,11 @@
 package com.cibertec.gestionacademicaapp.service.Impl;
 
 
+import com.cibertec.gestionacademicaapp.dto.reporte.ClaseAgendaDTO;
 import com.cibertec.gestionacademicaapp.dto.reporte.CursoRendimientoDTO;
 import com.cibertec.gestionacademicaapp.dto.reporte.DashboardAlumnoResponseDTO;
-import com.cibertec.gestionacademicaapp.entity.Asistencia;
-import com.cibertec.gestionacademicaapp.entity.DetalleMatricula;
-import com.cibertec.gestionacademicaapp.entity.Matricula;
-import com.cibertec.gestionacademicaapp.entity.Nota;
-import com.cibertec.gestionacademicaapp.repository.AsistenciaRepository;
-import com.cibertec.gestionacademicaapp.repository.DetalleMatriculaRepository;
-import com.cibertec.gestionacademicaapp.repository.MatriculaRepository;
-import com.cibertec.gestionacademicaapp.repository.NotaRepository;
+import com.cibertec.gestionacademicaapp.entity.*;
+import com.cibertec.gestionacademicaapp.repository.*;
 import com.cibertec.gestionacademicaapp.service.ReporteService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,6 +25,7 @@ public class ReporteServiceImpl implements ReporteService {
     private final DetalleMatriculaRepository detalleRepository;
     private final NotaRepository notaRepository;
     private final AsistenciaRepository asistenciaRepository;
+    private final HorarioRepository horarioRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -89,5 +86,70 @@ public class ReporteServiceImpl implements ReporteService {
 
         dashboard.setCursos(listaCursos);
         return dashboard;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClaseAgendaDTO> obtenerAgendaHoyAlumno(Integer idAlumno) {
+
+        // 1. Obtener la matrícula activa
+        Matricula matricula = matriculaRepository.findByAlumno_IdAlumnoAndEstado(idAlumno, "ACTIVA")
+                .orElseThrow(() -> new RuntimeException("El alumno no tiene una matrícula activa."));
+
+        // 2. Extraer los IDs de los cursos en los que está matriculado
+        List<DetalleMatricula> detalles = detalleRepository.findByMatricula_IdMatricula(matricula.getIdMatricula());
+        List<Integer> idsCursosMatriculados = detalles.stream()
+                .map(d -> d.getCurso().getIdCurso())
+                .toList();
+
+        // 3. Obtener el día actual en español (LUNES, MARTES, etc.)
+        String diaHoy = obtenerDiaSemanaActual();
+
+        // 4. Buscar el horario de hoy ordenado por hora de inicio
+        List<Horario> horariosDeHoy = horarioRepository
+                .findByCicloAcademico_IdCicloAndDiaSemanaAndCurso_IdCursoInOrderByHoraInicioAsc(
+                        matricula.getCicloAcademico().getIdCiclo(),
+                        diaHoy,
+                        idsCursosMatriculados);
+
+        // 5. Mapear al DTO y calcular el estado en vivo de la clase
+        List<ClaseAgendaDTO> agenda = new ArrayList<>();
+        LocalTime horaActual = LocalTime.now();
+
+        for (Horario h : horariosDeHoy) {
+            ClaseAgendaDTO dto = new ClaseAgendaDTO();
+            dto.setNombreCurso(h.getCurso().getNombreCurso());
+            dto.setNombreDocente(h.getDocente().getNombres() + " " + h.getDocente().getApellidos());
+            dto.setAula(h.getAula());
+            dto.setHoraInicio(h.getHoraInicio());
+            dto.setHoraFin(h.getHoraFin());
+
+            // --- REGLA DE NEGOCIO: Estado de la clase en tiempo real ---
+            if (horaActual.isAfter(h.getHoraFin())) {
+                dto.setEstadoClase("FINALIZADA");
+            } else if (horaActual.isBefore(h.getHoraInicio())) {
+                dto.setEstadoClase("POR INICIAR");
+            } else {
+                dto.setEstadoClase("EN CURSO");
+            }
+
+            agenda.add(dto);
+        }
+
+        return agenda;
+    }
+
+    // Método auxiliar para traducir el día de la máquina a tu base de datos
+    private String obtenerDiaSemanaActual() {
+        java.time.DayOfWeek dayOfWeek = java.time.LocalDate.now().getDayOfWeek();
+        return switch (dayOfWeek) {
+            case MONDAY -> "LUNES";
+            case TUESDAY -> "MARTES";
+            case WEDNESDAY -> "MIERCOLES";
+            case THURSDAY -> "JUEVES";
+            case FRIDAY -> "VIERNES";
+            case SATURDAY -> "SABADO";
+            case SUNDAY -> "DOMINGO";
+        };
     }
 }
