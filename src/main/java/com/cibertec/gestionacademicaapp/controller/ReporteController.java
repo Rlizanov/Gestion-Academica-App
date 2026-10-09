@@ -2,6 +2,7 @@ package com.cibertec.gestionacademicaapp.controller;
 
 import com.cibertec.gestionacademicaapp.dto.reporte.ClaseAgendaDTO;
 import com.cibertec.gestionacademicaapp.dto.reporte.DashboardAlumnoResponseDTO;
+import com.cibertec.gestionacademicaapp.dto.reporte.SimuladorNotaDTO;
 import com.cibertec.gestionacademicaapp.service.ReporteService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -26,5 +27,13 @@ public class ReporteController {
     @GetMapping("/agenda/alumno/{idAlumno}")
     public ResponseEntity<List<ClaseAgendaDTO>> obtenerAgendaHoy(@PathVariable Integer idAlumno) {
         return ResponseEntity.ok(reporteService.obtenerAgendaHoyAlumno(idAlumno));
+    }
+
+    // GET: http://localhost:8080/api/v1/reportes/simulador/alumno/1/curso/2
+    @GetMapping("/simulador/alumno/{idAlumno}/curso/{idCurso}")
+    public ResponseEntity<SimuladorNotaDTO> simularNotas(
+            @PathVariable Integer idAlumno,
+            @PathVariable Integer idCurso) {
+        return ResponseEntity.ok(reporteService.simularAprobacion(idAlumno, idCurso));
     }
 }

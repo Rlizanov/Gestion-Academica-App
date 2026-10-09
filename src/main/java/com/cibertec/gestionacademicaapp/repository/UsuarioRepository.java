@@ -11,4 +11,7 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Integer> {
 
 
     Optional<Usuario> findByUsuarioAndEstado(String usuario, Boolean estado);
+
+    // Método clave para que Spring Security busque al usuario al hacer Login
+    Optional<Usuario> findByUsuario(String usuario);
 }

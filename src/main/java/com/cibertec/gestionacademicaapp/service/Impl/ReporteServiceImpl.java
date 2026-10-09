@@ -4,6 +4,7 @@ package com.cibertec.gestionacademicaapp.service.Impl;
 import com.cibertec.gestionacademicaapp.dto.reporte.ClaseAgendaDTO;
 import com.cibertec.gestionacademicaapp.dto.reporte.CursoRendimientoDTO;
 import com.cibertec.gestionacademicaapp.dto.reporte.DashboardAlumnoResponseDTO;
+import com.cibertec.gestionacademicaapp.dto.reporte.SimuladorNotaDTO;
 import com.cibertec.gestionacademicaapp.entity.*;
 import com.cibertec.gestionacademicaapp.repository.*;
 import com.cibertec.gestionacademicaapp.service.ReporteService;
@@ -151,5 +152,74 @@ public class ReporteServiceImpl implements ReporteService {
             case SATURDAY -> "SABADO";
             case SUNDAY -> "DOMINGO";
         };
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SimuladorNotaDTO simularAprobacion(Integer idAlumno, Integer idCurso) {
+
+        // 1. Obtener la matrícula activa
+        Matricula matricula = matriculaRepository.findByAlumno_IdAlumnoAndEstado(idAlumno, "ACTIVA")
+                .orElseThrow(() -> new RuntimeException("El alumno no tiene una matrícula activa."));
+
+        // 2. Encontrar el detalle de ese curso específico
+        List<DetalleMatricula> detalles = detalleRepository.findByMatricula_IdMatricula(matricula.getIdMatricula());
+        DetalleMatricula detalleCurso = detalles.stream()
+                .filter(d -> d.getCurso().getIdCurso().equals(idCurso))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("El alumno no está matriculado en este curso."));
+
+        // 3. Obtener las notas actuales
+        List<Nota> notas = notaRepository.findByDetalleMatricula_IdDetalleMatricula(detalleCurso.getIdDetalleMatricula());
+
+        // 4. REGLAS DE NEGOCIO CIBERTEC: 3 Notas (T1, T2, EF) y nota mínima 13
+        int TOTAL_NOTAS_CICLO = 3;
+        double NOTA_APROBATORIA = 13.0;
+
+        int notasRegistradas = notas.size();
+        int notasFaltantes = TOTAL_NOTAS_CICLO - notasRegistradas;
+
+        double sumaActual = notas.stream().mapToDouble(n -> n.getValorNota().doubleValue()).sum();
+        double promedioActual = notasRegistradas == 0 ? 0.0 : sumaActual / notasRegistradas;
+
+        // 5. Armar la respuesta
+        SimuladorNotaDTO dto = new SimuladorNotaDTO();
+        dto.setNombreCurso(detalleCurso.getCurso().getNombreCurso());
+        dto.setNotasRegistradas(notasRegistradas);
+        dto.setNotasFaltantes(notasFaltantes);
+        dto.setPromedioActual(BigDecimal.valueOf(promedioActual).setScale(2, java.math.RoundingMode.HALF_UP));
+
+        // 6. Lógica del Simulador
+        if (notasFaltantes <= 0) { // Ya dio el EF
+            dto.setNotasFaltantes(0);
+            dto.setNotaMinimaRequerida(BigDecimal.ZERO);
+            if (sumaActual / TOTAL_NOTAS_CICLO >= NOTA_APROBATORIA) {
+                dto.setMensajeAlerta("¡Felicidades! Curso aprobado.");
+                dto.setColorSemaforo("VERDE");
+            } else {
+                dto.setMensajeAlerta("Curso desaprobado. Nos vemos en el sustitutorio.");
+                dto.setColorSemaforo("ROJO");
+            }
+        } else {
+            // Ecuación para Cibertec: (SumaActual + (NotaRequerida * NotasFaltantes)) / 3 = 13
+            double puntosFaltantes = (NOTA_APROBATORIA * TOTAL_NOTAS_CICLO) - sumaActual;
+            double notaRequerida = puntosFaltantes / notasFaltantes;
+
+            if (notaRequerida > 20.0) {
+                dto.setNotaMinimaRequerida(BigDecimal.valueOf(20.00).setScale(2, java.math.RoundingMode.HALF_UP));
+                dto.setMensajeAlerta("Matemáticamente imposible. Necesitas más de 20 en lo que falta.");
+                dto.setColorSemaforo("ROJO");
+            } else if (notaRequerida <= 0) {
+                dto.setNotaMinimaRequerida(BigDecimal.ZERO);
+                dto.setMensajeAlerta("¡Ya aseguraste el curso con tus notas actuales!");
+                dto.setColorSemaforo("VERDE");
+            } else {
+                dto.setNotaMinimaRequerida(BigDecimal.valueOf(notaRequerida).setScale(2, java.math.RoundingMode.HALF_UP));
+                dto.setMensajeAlerta("Necesitas sacar esta nota en tus siguientes evaluaciones para aprobar.");
+                dto.setColorSemaforo("AMARILLO");
+            }
+        }
+
+        return dto;
     }
 }

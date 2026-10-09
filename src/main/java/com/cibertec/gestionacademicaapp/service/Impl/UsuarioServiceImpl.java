@@ -19,22 +19,6 @@ public class UsuarioServiceImpl implements UsuarioService {
     private final PasswordEncoder passwordEncoder;
 
     @Override
-    public UsuarioResponseDTO autenticar(UsuarioRequestDTO requestDTO) {
-
-        // 1. Buscamos por el nombre de usuario (ej. 'RLIZANOV')
-        Usuario usuarioValido = usuarioRepository
-                .findByUsuarioAndEstado(requestDTO.getUsuario(), true)
-                .orElseThrow(() -> new RuntimeException("Credenciales incorrectas o cuenta inactiva."));
-
-        // 2. Comparamos la contraseña en texto plano enviada en el JSON con el PasswordHash de la base de datos
-        if (!passwordEncoder.matches(requestDTO.getPassword(), usuarioValido.getPasswordHash())) {
-            throw new RuntimeException("Credenciales incorrectas o cuenta inactiva.");
-        }
-
-        return usuarioMapper.toDto(usuarioValido);
-    }
-
-    @Override
     public UsuarioResponseDTO registrar(UsuarioRequestDTO requestDTO) {
         // Convertimos el request a entidad
         Usuario nuevoUsuario = usuarioMapper.toEntity(requestDTO);
